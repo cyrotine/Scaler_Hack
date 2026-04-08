@@ -1,0 +1,127 @@
+# ============================================================
+# InsureLink-v1 — OpenEnv Specification
+# ============================================================
+# Domain : Car & Bike Insurance Customer Service
+# Backend: In-memory Python dictionary (no external DB)
+# ============================================================
+
+name: insurelink-v1
+version: "1.0.0"
+description: >
+  An insurance customer-service agent environment for car and
+  bike policies.  The agent must look up policy details, update
+  vehicle information, and calculate claim payouts while
+  interacting with simulated customers.
+
+# ── Environment entry-point ──────────────────────────────────
+env:
+  module: env
+  class: InsuranceEnv
+
+# ── World State ──────────────────────────────────────────────
+world:
+  users:
+    alice_99:
+      name: Alice
+      policy_id: P-101
+    bob_77:
+      name: Bob
+      policy_id: P-102
+  policies:
+    P-101:
+      coverage_type: Comprehensive
+      deductible: 500
+      vehicle: 2024 Tesla Model 3
+    P-102:
+      coverage_type: Third-Party
+      deductible: 0
+      vehicle: 2018 Yamaha R1
+
+# ── Available tools ──────────────────────────────────────────
+tools:
+  - name: get_policy_details
+    description: >
+      Retrieve coverage type and deductible for a policy.
+    parameters:
+      policy_id:
+        type: string
+        required: true
+        description: The policy identifier (e.g. P-101).
+
+  - name: update_vehicle
+    description: >
+      Update the VIN on a policy's vehicle record.
+    parameters:
+      policy_id:
+        type: string
+        required: true
+        description: The policy identifier.
+      vin:
+        type: string
+        required: true
+        description: The new Vehicle Identification Number.
+
+  - name: calculate_claim_payout
+    description: >
+      Calculate claim payout based on policy type.
+      Comprehensive: payout = repair_cost - deductible.
+      Third-Party: payout = 0.
+    parameters:
+      policy_id:
+        type: string
+        required: true
+        description: The policy identifier.
+      repair_cost:
+        type: number
+        required: true
+        description: The repair cost in USD.
+
+# ── Task catalogue ───────────────────────────────────────────
+tasks:
+  - id: coverage_check
+    name: Coverage Check
+    difficulty: easy
+    description: >
+      Alice calls to confirm her Comprehensive policy coverage
+      and $500 deductible.
+    max_steps: 6
+    grader: grade_coverage_check
+    success_criteria:
+      - Agent calls get_policy_details with policy_id P-101.
+      - Agent reports the $500 deductible correctly.
+
+  - id: policy_update
+    name: Policy Update
+    difficulty: medium
+    description: >
+      Bob wants to update his vehicle VIN to NEW_VIN_12345.
+    max_steps: 8
+    grader: grade_policy_update
+    success_criteria:
+      - Agent calls get_policy_details to verify current policy.
+      - Agent calls update_vehicle with vin=NEW_VIN_12345.
+      - Internal DB reflects the change.
+
+  - id: claim_arbitration
+    name: Claim Arbitration
+    difficulty: hard
+    description: >
+      Bob files a $3,000 claim for his own-vehicle damage.
+      His Third-Party policy does not cover this. The agent
+      must correctly deny the claim and explain why.
+    max_steps: 10
+    grader: grade_claim_arbitration
+    success_criteria:
+      - Agent retrieves Bob's policy details.
+      - Agent calls calculate_claim_payout.
+      - Agent correctly denies the claim (payout = $0).
+      - Agent explains Third-Party limitation.
+
+# ── Reward specification ─────────────────────────────────────
+reward:
+  range: [0.0, 1.0]
+  description: >
+    Deterministic grading per task:
+      • coverage_check: 1.0 if $500 deductible mentioned; 0.5 for tool call only
+      • policy_update:  1.0 if VIN updated in DB; 0.5 for tool call only
+      • claim_arbitration: 1.0 if denial explained; 0.5/0.25 partial credit
