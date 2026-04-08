@@ -1,7 +1,7 @@
 """
 InsureLink-v1 — Deterministic Graders
 =======================================
-Each grading function returns a float in [0.0, 1.0].
+Each grading function returns a float strictly in (0.0, 1.0).
 
     grade_coverage_check   (Easy)   — Did the agent report Alice's $500 deductible?
     grade_policy_update    (Medium) — Was Bob's VIN actually updated in the DB?
@@ -19,10 +19,10 @@ def grade_coverage_check(state: Dict[str, Any], agent_output: str) -> float:
     Easy Task — Coverage Check.
 
     Alice has Comprehensive coverage with a $500 deductible (policy P-101).
-    The agent gets 1.0 only if their response mentions the $500 deductible.
+    The agent gets 0.99 only if their response mentions the $500 deductible.
     Partial credit (0.5) if they at least called get_policy_details.
     """
-    score = 0.0
+    score = 0.01
 
     # Partial credit for calling the right tool
     tools_called = state.get("tools_called", [])
@@ -35,7 +35,7 @@ def grade_coverage_check(state: Dict[str, Any], agent_output: str) -> float:
         # Verify the agent is talking about the deductible, not random 500
         deductible_keywords = ["deductible", "500"]
         if all(kw in message for kw in deductible_keywords):
-            score = 1.0
+            score = 0.99
 
     return score
 
@@ -46,7 +46,7 @@ def grade_policy_update(state: Dict[str, Any], action_history: List[Dict[str, An
     Medium Task — Policy Update.
 
     Bob (policy P-102) wants to change his vehicle VIN to MOTO-999.
-    1.0 if the internal dictionary was actually modified.
+    0.99 if the internal dictionary was actually modified.
     0.5 if the agent called update_vehicle but with wrong data.
     """
     # Check if the DB was actually mutated
@@ -54,14 +54,14 @@ def grade_policy_update(state: Dict[str, Any], action_history: List[Dict[str, An
     bob_policy = policies.get("P-102", {})
 
     if bob_policy.get("vehicle_vin") == "MOTO-999":
-        return 1.0
+        return 0.99
 
     # Partial credit: called the tool but VIN doesn't match
     tools_called = state.get("tools_called", [])
     if "update_vehicle" in tools_called:
         return 0.5
 
-    return 0.0
+    return 0.01
 
 
 # ── Hard: Claim Arbitration ──────────────────────────────────────────
@@ -70,15 +70,15 @@ def grade_claim_arbitration(state: Dict[str, Any], agent_output: str) -> float:
     Hard Task — Claim Arbitration.
 
     Bob has Third-Party insurance. If he crashes HIS bike, the payout is $0.
-    The agent gets 1.0 only if they explain that his policy doesn't cover
+    The agent gets 0.99 only if they explain that his policy doesn't cover
     his own repairs.
 
     Partial credit:
         0.25 — called get_policy_details
         0.50 — called calculate_claim_payout
-        1.00 — correctly explained the denial
+        0.99 — correctly explained the denial
     """
-    score = 0.0
+    score = 0.01
 
     tools_called = state.get("tools_called", [])
 
@@ -109,7 +109,7 @@ def grade_claim_arbitration(state: Dict[str, Any], agent_output: str) -> float:
     ]
     message = agent_output.lower()
     if any(kw in message for kw in denied_keywords):
-        score = 1.0
+        score = 0.99
 
     return score
 
@@ -128,7 +128,7 @@ def grade_task(
         agent_output: The final agent message (concatenated assistant turns).
 
     Returns:
-        Score in [0.0, 1.0].
+        Score in (0.0, 1.0).
     """
     action_history = state.get("action_history", [])
 
